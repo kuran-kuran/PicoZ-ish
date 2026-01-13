@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <cstring>
 #include "pico/stdlib.h"
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
 
 // GPIO0: /IORQ
 // GPIO1: /RD
@@ -22,18 +24,20 @@
 // GPIO17: D6
 // GPIO18: D7
 
-const uint LED_PIN = PICO_DEFAULT_LED_PIN;
-const uint CONTROL_RD = 0x2;
-const uint CONTROL_MASK = 0x7;
-const uint CONTROL_READ = 0x4;
-const uint CONTROL_WRITE = 0x2;
-const uint ADDRESS_SHIFT = 3;
-const uint ADDRESS_MASK = 0xFF << ADDRESS_SHIFT;
-const uint DATA_SHIFT = 11;
-const uint DATA_MASK = 0xFF << DATA_SHIFT;
+static const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+static const uint CONTROL_RD = 0x2;
+static const uint CONTROL_MASK = 0x7;
+static const uint CONTROL_READ = 0x4;
+static const uint CONTROL_WRITE = 0x2;
+static const uint ADDRESS_SHIFT = 3;
+static const uint ADDRESS_MASK = 0xFF << ADDRESS_SHIFT;
+static const uint DATA_SHIFT = 11;
+static const uint DATA_MASK = 0xFF << DATA_SHIFT;
+static const uint EMM_SIZE = 0x50000;
 
-uint8_t __attribute__  ((aligned(sizeof(unsigned char *) * 4096))) emmData[0x50000];
+uint8_t __attribute__  ((aligned(sizeof(unsigned char *) * 4096))) emmData[EMM_SIZE];
 volatile uint32_t emmAddress = 0;
+int toggle = 1;
 
 int __not_in_flash_func(ioFunc)(void)
 {
@@ -41,20 +45,29 @@ int __not_in_flash_func(ioFunc)(void)
 	uint8_t ioAddress = 0;
 	uint8_t data = 0xFF;
 	uint32_t response = 0;
-	memset(emmData, 0, 0x50000);
+	memset(emmData, 0, EMM_SIZE);
 	while(true)
 	{
 //		allGpio = gpio_get_all();
 		allGpio = sio_hw->gpio_in;
 		uint control = allGpio & CONTROL_MASK;
-		ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
 		if(control == CONTROL_READ)
 		{
 			// I/O Read
+			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
+			case 0:
+				data = emmData[data];
+				response = 1;
+				break;
 			case 0xA7:
 				data = emmData[emmAddress];
+				++ emmAddress;
+				if(emmAddress >= EMM_SIZE)
+				{
+					emmAddress = 0;
+				}
 				response = 1;
 				break;
 			default:
@@ -62,7 +75,7 @@ int __not_in_flash_func(ioFunc)(void)
 			}
 			if(response)
 			{
-                // Set GPIO11-18 to Output
+				// Set GPIO11-18 to Output
 				gpio_set_dir_masked(DATA_MASK, DATA_MASK);
 				gpio_put_masked(DATA_MASK, ((uint32_t)data << DATA_SHIFT));
 				// Wait while /RD is low
@@ -72,8 +85,14 @@ int __not_in_flash_func(ioFunc)(void)
 					allGpio = sio_hw->gpio_in;
 					control = allGpio & CONTROL_RD;
 				}
-                // Set GPIO11-18 to Input
-                gpio_set_dir_masked(DATA_MASK, 0x00);
+				// Set GPIO11-18 to Input
+				gpio_set_dir_masked(DATA_MASK, 0x00);
+
+if(emmAddress == 0x20000 && data == 0) {
+	toggle = 1 - toggle;
+	gpio_put(LED_PIN, toggle);
+}
+
 			}
 			else
 			{
@@ -89,22 +108,34 @@ int __not_in_flash_func(ioFunc)(void)
 		else if(control == CONTROL_WRITE)
 		{
 			// I/O Write
+			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
 			data = (allGpio >> DATA_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
+			case 0:
+				emmData[data] = data;
+				break;
 			case 0xA4:
 				emmAddress = (emmAddress & 0xFFFF00) | data;
 				break;
 			case 0xA5:
 				emmAddress = (emmAddress & 0xFF00FF) | (data << 8);
 				break;
+				
 			case 0xA6:
 				emmAddress = (emmAddress & 0x00FFFF) | (data << 16);
 				break;
 			case 0xA7:
+
+
+if(emmAddress == 0x1FFFF && data == 0) {
+	toggle = 1 - toggle;
+	gpio_put(LED_PIN, toggle);
+}
+
 				emmData[emmAddress] = data;
 				++ emmAddress;
-				if(emmAddress >= 0x50000)
+				if(emmAddress >= EMM_SIZE)
 				{
 					emmAddress = 0;
 				}
@@ -112,11 +143,16 @@ int __not_in_flash_func(ioFunc)(void)
 			}
 		}
 	}
+	return 0;
 }
 
 int main()
 {
 	stdio_init_all();
+
+	// overclock 300MHz
+	vreg_set_voltage(VREG_VOLTAGE_1_20);
+	set_sys_clock_khz(300000 ,true);
 
 	// All pins are INPUT
     gpio_init_mask(0xFFFFFFFF);
@@ -125,7 +161,6 @@ int main()
 	// Debug
 	gpio_init(LED_PIN);
 	gpio_set_dir(LED_PIN, GPIO_OUT);
-	int toggle = 1;
 	gpio_put(LED_PIN, toggle);
 
 	return ioFunc();
