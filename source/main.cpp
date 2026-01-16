@@ -36,8 +36,8 @@ static const uint DATA_SHIFT = 11;
 static const uint DATA_MASK = 0xFF << DATA_SHIFT;
 static const uint EMM_SIZE = 0x50000; // 320KB
 
-uint8_t __attribute__  ((aligned(sizeof(uint8_t *) * 4096))) emmData[EMM_SIZE];
-volatile uint32_t emmAddress = 0;
+uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
+uint32_t emmAddress = 0;
 int toggle = 1;
 
 int __not_in_flash_func(ioFunc)(void)
@@ -59,6 +59,7 @@ int __not_in_flash_func(ioFunc)(void)
 			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
+				// Debug
 			case 0:
 				data = emmData[emmAddress];
 				++ emmAddress;
@@ -118,6 +119,7 @@ if(emmAddress == 0x20000 && data == 0) {
 			data = (allGpio >> DATA_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
+				// Debug
 			case 0:
 				emmData[data] = data;
 				emmAddress = 0;
@@ -188,7 +190,7 @@ if(emmAddress == 0x1FFFF && data == 0) {
 
 int main()
 {
-//	stdio_init_all();
+	stdio_init_all();
 
 	// overclock 300MHz
 	vreg_set_voltage(VREG_VOLTAGE_1_20);
