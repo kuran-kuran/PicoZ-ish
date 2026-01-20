@@ -194,17 +194,12 @@ int main()
 	// init GPIO
     gpio_init_mask(0xFFFFFFFF);
 
-	char msg[64];
-	bool r = false;
-
 	// init SD card
-	r = sdInit();
-	sleep_ms(10);
+	sdInit();
 
 	// overclock 300MHz
 	vreg_set_voltage(VREG_VOLTAGE_1_20);
 	set_sys_clock_khz(300000 ,true);
-//	uartReInit();
 
 	// init UART
 	uartInit();
