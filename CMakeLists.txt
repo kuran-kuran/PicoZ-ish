@@ -8,18 +8,36 @@ include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 project(PicoZ-ish_project C CXX ASM)
 pico_sdk_init()
 
+set(SDIO_LIB_ROOT "D:/project/git/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico")
+add_subdirectory(${SDIO_LIB_ROOT}/src ${CMAKE_CURRENT_BINARY_DIR}/sd_lib)
+
 add_executable(PicoZ-ish
     ./source/main.cpp
+    ./source/hw_config.c
+    ./source/sdcard.cpp
+    ./source/uart.cpp
 )
 
 target_link_libraries(PicoZ-ish
     pico_stdlib
+    hardware_uart
+    hardware_spi
+    hardware_pio
+    hardware_dma
+    no-OS-FatFS-SD-SDIO-SPI-RPi-Pico
 )
 pico_set_program_name(PicoZ-ish "PicoZ-ish")
 pico_set_program_version(PicoZ-ish "0.0.1")
 pico_enable_stdio_usb(PicoZ-ish 1)
 pico_enable_stdio_uart(PicoZ-ish 0)
 
-target_include_directories(PicoZ-ish PRIVATE ${CMAKE_CURRENT_LIST_DIR}/source)
+# target_include_directories(PicoZ-ish PRIVATE ${CMAKE_CURRENT_LIST_DIR}/source)
+target_include_directories(PicoZ-ish PRIVATE 
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${SDIO_LIB_ROOT}/src
+    ${SDIO_LIB_ROOT}/src/include
+    ${SDIO_LIB_ROOT}/src/sd_driver
+    ${SDIO_LIB_ROOT}/src/ff15/source
+)
 
 pico_add_extra_outputs(PicoZ-ish)
