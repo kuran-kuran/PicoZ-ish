@@ -3,8 +3,11 @@
 #include "pico/stdlib.h"
 #include "hardware/vreg.h"
 #include "hardware/clocks.h"
-#include "sdcard.h"
-#include "uart.h"
+#include "sdcard.hpp"
+#include "uart.hpp"
+#include "pio.hpp"
+#include "z80_io_sampling.pio.h"
+#include "z80_in_data.pio.h"
 
 // GPIO0: /IORQ
 // GPIO1: /RD
@@ -59,8 +62,46 @@ static inline __attribute__((always_inline)) void outputData(uint8_t data)
 	gpio_set_dir_masked(DATA_MASK, 0x00);
 }
 
-int __not_in_flash_func(ioFunc)(void)
+__attribute__((noinline)) int __time_critical_func(main)(void)
 {
+	stdio_init_all();
+
+	// init GPIO
+    gpio_init_mask(0xFFFFFFFF);
+
+	// init SD card
+	sdInit();
+
+	// overclock 300MHz
+//	vreg_set_voltage(VREG_VOLTAGE_1_20);
+//	set_sys_clock_khz(300000 ,true);
+
+	// init UART
+	uartInit();
+	uart_puts(UART_ID, "Start.\r\n");
+
+	// GPIO0 - GPIO18 pins are INPUT
+	gpio_set_dir_masked(0x7FFFF, 0x00000);
+
+	// Debug
+	gpio_init(LED_PIN);
+	gpio_set_dir(LED_PIN, GPIO_OUT);
+	gpio_put(LED_PIN, true);
+
+	// io_sampling
+	PIO pio = pio0;
+	uint sm_rx = 0;
+	uint sm_tx = 0;
+	uint offset_rx = pio_add_program(pio, &z80_io_sampling_program);
+	uint offset_tx = pio_add_program(pio, &z80_in_data_program);
+	// GPIO0～
+	z80_io_sampling_program_init(pio, sm_rx, offset_rx, 0);
+	// GPIO11～
+	z80_in_data_program_init(pio, sm_tx, offset_tx, 11);
+	pio_sm_set_enabled(pio, sm_rx, true);
+	pio_sm_set_enabled(pio, sm_tx, true);
+
+	// init device
 	uint32_t allGpio;
 	uint8_t ioAddress = 0;
 	uint8_t data = 0xFF;
@@ -68,14 +109,11 @@ int __not_in_flash_func(ioFunc)(void)
 	int toggle = 1;
 	bool flag;
 	memset(emmData, 0, EMM_SIZE);
+
 	do
 	{
 		// Wait while /IORQ is high
-		do
-		{
-			allGpio = sio_hw->gpio_in;
-		}
-		while(allGpio & IORQ);
+		allGpio = pio_sm_get_blocking(pio, sm_rx);
 		// I/O Read, /RD is Low
 		if(!(allGpio & RD))
 		{
@@ -86,7 +124,7 @@ int __not_in_flash_func(ioFunc)(void)
 			case 0:
 				data = emmData[emmAddress];
 				// output data
-				outputData(data);
+				pio_sm_put_blocking(pio, sm_tx, data);
 				// add address
 				++ emmAddress;
 				break;
@@ -94,7 +132,7 @@ int __not_in_flash_func(ioFunc)(void)
 			case 0xA7:
 				data = emmData[emmAddress];
 				// output data
-				outputData(data);
+				pio_sm_put_blocking(pio, sm_tx, data);
 				// add address
 				++ emmAddress;
 				if(emmAddress >= EMM_SIZE)
@@ -102,9 +140,6 @@ int __not_in_flash_func(ioFunc)(void)
 					emmAddress -= EMM_SIZE;
 				}
 				break;
-			default:
-				// Wait while /RD is low
-				do {} while((sio_hw->gpio_in & RD) == 0);
 			}
 		}
 		// I/O Write, /WR is low
@@ -179,39 +214,9 @@ if(emmAddress == 0x1FFFF && data == 0) {
 				}
 				break;
 			}
-			// Wait while /WR is low
-			do {} while((sio_hw->gpio_in & WR) == 0);
 		}
 	}
 	while(true);
+
 	return 0;
-}
-
-int main()
-{
-	stdio_init_all();
-
-	// init GPIO
-    gpio_init_mask(0xFFFFFFFF);
-
-	// init SD card
-	sdInit();
-
-	// overclock 300MHz
-	vreg_set_voltage(VREG_VOLTAGE_1_20);
-	set_sys_clock_khz(300000 ,true);
-
-	// init UART
-	uartInit();
-	uart_puts(UART_ID, "Start.\r\n");
-
-	// GPIO0 - GPIO18 pins are INPUT
-	gpio_set_dir_masked(0x7FFFF, 0x00000);
-
-	// Debug
-	gpio_init(LED_PIN);
-	gpio_set_dir(LED_PIN, GPIO_OUT);
-	gpio_put(LED_PIN, true);
-
-	return ioFunc();
 }

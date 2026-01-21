@@ -1,13 +1,7 @@
-#ifndef UART_H
-#define UART_H
+#ifndef UART_HPP
+#define UART_HPP
 
 #include "pico/stdlib.h"
-
-#ifdef __cplusplus
-extern "C" {
-#else
-#include <stdbool.h>
-#endif
 
 #define UART_ID uart1
 #define BAUD_RATE 9600
@@ -16,9 +10,5 @@ extern "C" {
 
 void uartInit(void);
 void uartReInit(void);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
