@@ -37,6 +37,9 @@ static const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 static const uint IORQ = 0x1;
 static const uint RD = 0x2;
 static const uint WR = 0x4;
+static const uint BUS_MASK = 0x7;
+static const uint BUS_RD = 0x4;
+static const uint BUS_WR = 0x2;
 static const uint ADDRESS_SHIFT = 3;
 static const uint ADDRESS_MASK = 0xFF << ADDRESS_SHIFT;
 static const uint DATA_SHIFT = 11;
@@ -44,6 +47,26 @@ static const uint DATA_MASK = 0xFF << DATA_SHIFT;
 static const uint EMM_SIZE = 0x50000; // 320KB
 
 uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
+
+void debugDump(void* buffer, int size)
+{
+	unsigned char* buffer8 = (unsigned char*)buffer;
+	char text[64];
+	uart_puts(UART_ID, "\r\n");
+	for(int i = 0; i < size; ++ i)
+	{
+		if((i % 16) == 15)
+		{
+			sprintf(text, "%02X\r\n", buffer8[i]);
+		}
+		else
+		{
+			sprintf(text, "%02X ", buffer8[i]);
+		}
+		uart_puts(UART_ID, text);
+	}
+	uart_puts(UART_ID, "\r\n");
+}
 
 // Output data
 static inline __attribute__((always_inline)) void outputData(uint8_t data)
@@ -61,25 +84,22 @@ static inline __attribute__((always_inline)) void outputData(uint8_t data)
 
 int __not_in_flash_func(ioFunc)(void)
 {
-	uint32_t allGpio;
 	uint8_t ioAddress = 0;
 	uint8_t data = 0xFF;
 	uint32_t emmAddress = 0;
 	int toggle = 1;
 	bool flag;
 	memset(emmData, 0, EMM_SIZE);
+
+	char msg[1024];
+
 	do
 	{
-		// Wait while /IORQ is high
-		do
+		uint32_t bus = sio_hw->gpio_in;
+		// I/O Read, /IORQ and /RD is Low
+		if((bus & BUS_MASK) == BUS_RD)
 		{
-			allGpio = sio_hw->gpio_in;
-		}
-		while(allGpio & IORQ);
-		// I/O Read, /RD is Low
-		if(!(allGpio & RD))
-		{
-			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
+			ioAddress = (bus >> ADDRESS_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
 				// Debug
@@ -107,11 +127,17 @@ int __not_in_flash_func(ioFunc)(void)
 				do {} while((sio_hw->gpio_in & RD) == 0);
 			}
 		}
-		// I/O Write, /WR is low
-		else if(!(allGpio & WR))
+		// I/O Write, /IORQ and /WR is low
+		else if((bus & BUS_MASK) == BUS_WR)
 		{
-			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
-			data = (allGpio >> DATA_SHIFT) & 0xFF;
+			// 40ns待つ
+			__asm volatile(
+				"nop\nnop\nnop\nnop\nnop\nnop\n"
+				"nop\nnop\nnop\nnop\nnop\nnop\n"
+			);
+			bus = sio_hw->gpio_in;
+			ioAddress = (bus >> ADDRESS_SHIFT) & 0xFF;
+			data = (bus >> DATA_SHIFT) & 0xFF;
 			switch(ioAddress)
 			{
 				// Debug
@@ -141,6 +167,9 @@ int __not_in_flash_func(ioFunc)(void)
 					toggle = 1 - toggle;
 					gpio_put(LED_PIN, toggle);
 				}
+				debugDump(emmData, 256);
+				sprintf(msg, "emmAddress: %u\r\n", emmAddress);
+				uart_puts(UART_ID, msg);
 				break;
 			case 3:
 				// Save to sd-card emm memory 320KB
@@ -162,15 +191,6 @@ int __not_in_flash_func(ioFunc)(void)
 				emmAddress = (emmAddress & 0x00FFFF) | (data << 16);
 				break;
 			case 0xA7:
-
-
-/*
-if(emmAddress == 0x1FFFF && data == 0) {
-	toggle = 1 - toggle;
-	gpio_put(LED_PIN, toggle);
-}
-*/
-
 				emmData[emmAddress] = data;
 				++ emmAddress;
 				if(emmAddress >= EMM_SIZE)
