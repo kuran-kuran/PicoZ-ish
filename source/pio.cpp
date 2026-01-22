@@ -9,16 +9,11 @@ void z80_io_sampling_program_init(PIO pio, uint sm, uint offset, uint base_pin)
 	// GPIO0–18 を IN 用 pins に設定
 	sm_config_set_in_pins(&c, base_pin);
 	// SHIFT 設定 (右詰め autopush OFF)
-	sm_config_set_in_shift(
-		&c,
-		false,   // shift_right = false (LSB → MSB)
-		false,   // autopush = false
-		32
-	);
+	sm_config_set_in_shift(&c, false, false, 32);
 	// FIFO を RX のみに使用
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-	// クロック分周（最速）
-	sm_config_set_clkdiv(&c, 1.0f);
+	// 4分周
+	sm_config_set_clkdiv(&c, 4.0f);
 	// GPIO0–18 を PIO 管轄に
 	for (int i = base_pin; i < base_pin + 19; ++ i)
 	{
@@ -38,23 +33,11 @@ void z80_in_data_program_init(PIO pio, uint sm, uint offset, uint data_pin_base)
 	// OUT 用ピン (D0–D7)
 	sm_config_set_out_pins(&c, data_pin_base, 8);
 	// OUT SHIFT 設定 (LSB → D0)
-	sm_config_set_out_shift(
-		&c,
-		false,  // shift_right = false
-		false,  // autopull = false
-		32
-	);
+	sm_config_set_out_shift(&c, false, false, 32);
 	// FIFO は TX のみ使用
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-	// 最速
-	sm_config_set_clkdiv(&c, 1.0f);
-	// GPIO11–18 を PIO 管轄に
-	for (int i = data_pin_base; i < data_pin_base + 8; ++ i)
-	{
-		pio_gpio_init(pio, i);
-	}
-	// 初期状態は input (Hi-Z)
-	pio_sm_set_consecutive_pindirs(pio, sm, data_pin_base, 8, false);
+	// 4分周
+	sm_config_set_clkdiv(&c, 4.0f);
 	// state machine 初期化
 	pio_sm_init(pio, sm, offset, &c);
 }

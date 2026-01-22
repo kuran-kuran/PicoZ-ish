@@ -203,6 +203,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 					gpio_put(LED_PIN, toggle);
 				}
 				debugDump(emmData, 256);
+				sprintf(msg, "emmAddress: %u\r\n", emmAddress);
+				uart_puts(UART_ID, msg);
 				break;
 			case 3:
 				// Save to sd-card emm memory 320KB
@@ -224,15 +226,6 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				emmAddress = (emmAddress & 0x00FFFF) | (data << 16);
 				break;
 			case 0xA7:
-
-
-/*
-if(emmAddress == 0x1FFFF && data == 0) {
-	toggle = 1 - toggle;
-	gpio_put(LED_PIN, toggle);
-}
-*/
-
 				emmData[emmAddress] = data;
 				++ emmAddress;
 				if(emmAddress >= EMM_SIZE)

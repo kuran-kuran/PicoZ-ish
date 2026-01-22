@@ -1,14 +1,15 @@
-; GPIO11–18 : D0–D7
-
 .program z80_in_data
 
 start:
     wait 0 pin 0        ; /IORQ Low
     wait 0 pin 1        ; /RD Low
 
-    pull block          ; 8bit data
-    out pins, 8         ; output D0–D7
-hold:
+    pull block
+    mov x, ~null
+    set pindirs, 8      ; D0-7 OUTPUT
+    out pins, 8
+
     wait 1 pin 1        ; /RD High
-    set pindirs, 0      ; input D0–D7
+    set x, 0
+    set pindirs, 0      ; D0-7 INPUT (Hi-Z)
     jmp start
