@@ -62,6 +62,26 @@ static inline __attribute__((always_inline)) void outputData(uint8_t data)
 	gpio_set_dir_masked(DATA_MASK, 0x00);
 }
 
+void debugDump(void* buffer, int size)
+{
+	unsigned char* buffer8 = (unsigned char*)buffer;
+	char text[64];
+	uart_puts(UART_ID, "\r\n");
+	for(int i = 0; i < size; ++ i)
+	{
+		if((i % 16) == 15)
+		{
+			sprintf(text, "%02X\r\n", buffer8[i]);
+		}
+		else
+		{
+			sprintf(text, "%02X ", buffer8[i]);
+		}
+		uart_puts(UART_ID, text);
+	}
+	uart_puts(UART_ID, "\r\n");
+}
+
 __attribute__((noinline)) int __time_critical_func(main)(void)
 {
 	stdio_init_all();
@@ -73,8 +93,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	sdInit();
 
 	// overclock 300MHz
-//	vreg_set_voltage(VREG_VOLTAGE_1_20);
-//	set_sys_clock_khz(300000 ,true);
+	vreg_set_voltage(VREG_VOLTAGE_1_20);
+	set_sys_clock_khz(300000 ,true);
 
 	// init UART
 	uartInit();
@@ -91,7 +111,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	// io_sampling
 	PIO pio = pio0;
 	uint sm_rx = 0;
-	uint sm_tx = 0;
+	uint sm_tx = 1;
 	uint offset_rx = pio_add_program(pio, &z80_io_sampling_program);
 	uint offset_tx = pio_add_program(pio, &z80_in_data_program);
 	// GPIO0～
@@ -110,10 +130,16 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	bool flag;
 	memset(emmData, 0, EMM_SIZE);
 
+	char msg[1024];
+
 	do
 	{
 		// Wait while /IORQ is high
 		allGpio = pio_sm_get_blocking(pio, sm_rx);
+
+//		sprintf(msg, "allGpio: %x\r\n", allGpio);
+//		uart_puts(UART_ID, msg);
+
 		// I/O Read, /RD is Low
 		if(!(allGpio & RD))
 		{
@@ -176,6 +202,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 					toggle = 1 - toggle;
 					gpio_put(LED_PIN, toggle);
 				}
+				debugDump(emmData, 256);
 				break;
 			case 3:
 				// Save to sd-card emm memory 320KB
