@@ -1,15 +1,17 @@
 .program z80_in_data
 
-start:
-    wait 0 pin 0        ; /IORQ Low
-    wait 0 pin 1        ; /RD Low
-
+loop:
+    ; OSR <-- TX-FIFO (data)
     pull block
-    mov x, ~null
-    set pindirs, 8      ; D0-7 OUTPUT
+
+    nop  [2]
+
+    ; D0-D7 OUTPUT
+    mov pindirs, ~null
     out pins, 8
 
-    wait 1 pin 1        ; /RD High
-    set x, 0
-    set pindirs, 0      ; D0-7 INPUT (Hi-Z)
-    jmp start
+    ; /RDがhighになるまで待つ
+    wait 1 pin 1
+    ; D0-D7 INPUT
+    mov pindirs, null
+    jmp loop
