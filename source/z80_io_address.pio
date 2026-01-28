@@ -2,17 +2,16 @@
 ; GPIO1     : /RD
 ; GPIO2     : /WR
 ; GPIO3–10  : A0–A7
-; GPIO11–18 : D0–D7
 
-.program z80_io_sampling
-; input GPIO0–18
+.program z80_io_address
+; input GPIO0–10
 
 start:
     wait 1 pin 0        ; /IORQ High
     wait 0 pin 0        ; /IORQ Low
     nop  [2]
 
-    in pins, 19         ; read GPIO0–18
+    in pins, 11         ; read GPIO0–10
     push block
 
     jmp start

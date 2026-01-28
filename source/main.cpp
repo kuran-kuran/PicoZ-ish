@@ -6,8 +6,8 @@
 #include "sdcard.hpp"
 #include "uart.hpp"
 #include "pio.hpp"
-#include "z80_io_sampling.pio.h"
-#include "z80_in_data.pio.h"
+#include "z80_io_address.pio.h"
+#include "z80_io_data.pio.h"
 
 // GPIO0: /IORQ
 // GPIO1: /RD
@@ -42,25 +42,11 @@ static const uint RD = 0x2;
 static const uint WR = 0x4;
 static const uint ADDRESS_SHIFT = 3;
 static const uint ADDRESS_MASK = 0xFF << ADDRESS_SHIFT;
-static const uint DATA_SHIFT = 11;
-static const uint DATA_MASK = 0xFF << DATA_SHIFT;
+//static const uint DATA_SHIFT = 11;
+//static const uint DATA_MASK = 0xFF << DATA_SHIFT;
 static const uint EMM_SIZE = 0x50000; // 320KB
 
 uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
-
-// Output data
-static inline __attribute__((always_inline)) void outputData(uint8_t data)
-{
-	// Set GPIO11-18 to Output
-	gpio_set_dir_masked(DATA_MASK, DATA_MASK);
-	gpio_put_masked(DATA_MASK, ((uint32_t)data << DATA_SHIFT));
-
-	// Wait while /RD is low
-	do {} while((sio_hw->gpio_in & RD) == 0);
-
-	// Set GPIO11-18 to Input
-	gpio_set_dir_masked(DATA_MASK, 0x00);
-}
 
 void debugDump(void* buffer, int size)
 {
@@ -110,21 +96,21 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 
 	// io_sampling
 	PIO pio = pio0;
-	uint sm_rx = 0;
-	uint sm_tx = 1;
-	uint offset_rx = pio_add_program(pio, &z80_io_sampling_program);
-	uint offset_tx = pio_add_program(pio, &z80_in_data_program);
+	uint sm_address = 0;
+	uint sm_data = 1;
+	uint offset_address = pio_add_program(pio, &z80_io_address_program);
+	uint offset_data = pio_add_program(pio, &z80_io_data_program);
 	// GPIO0～
-	z80_io_sampling_program_init(pio, sm_rx, offset_rx, 0);
+	z80_io_address_program_init(pio, sm_address, offset_address, 0);
 	// GPIO11～
-	z80_in_data_program_init(pio, sm_tx, offset_tx, 11);
-	pio_sm_set_enabled(pio, sm_rx, true);
-	pio_sm_set_enabled(pio, sm_tx, true);
+	z80_io_data_program_init(pio, sm_data, offset_data, 11);
 
 	// init device
-	uint32_t allGpio;
-	uint8_t ioAddress = 0;
-	uint8_t data = 0xFF;
+	uint32_t bus;
+	uint32_t address;
+	uint32_t data;
+//	uint8_t ioAddress = 0;
+//	uint8_t data = 0xFF;
 	uint32_t emmAddress = 0;
 	int toggle = 1;
 	bool flag;
@@ -135,30 +121,38 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	do
 	{
 		// Wait while /IORQ is high
-		allGpio = pio_sm_get_blocking(pio, sm_rx);
+		bus = pio_sm_get_blocking(pio, sm_address);
 
-//		sprintf(msg, "allGpio: %x\r\n", allGpio);
+//		sprintf(msg, "bus: %x\r\n", bus);
 //		uart_puts(UART_ID, msg);
 
 		// I/O Read, /RD is Low
-		if(!(allGpio & RD))
+		if(!(bus & RD))
 		{
-			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
-			switch(ioAddress)
+			address = (bus >> ADDRESS_SHIFT) & 0xFF;
+
+//			sprintf(msg, "in address: %x\r\n", address);
+//			uart_puts(UART_ID, msg);
+
+			switch(address)
 			{
 				// Debug
 			case 0:
-				data = emmData[emmAddress];
+				data = 5 << 1;//(emmData[emmAddress] << 1); //@@
+
+			sprintf(msg, "in address: %x, data %x\r\n", address, data);
+			uart_puts(UART_ID, msg);
+
 				// output data
-				pio_sm_put_blocking(pio, sm_tx, data);
+				pio_sm_put_blocking(pio, sm_data, data);
 				// add address
 				++ emmAddress;
 				break;
 				// EMM1
 			case 0xA7:
-				data = emmData[emmAddress];
+				data = (emmData[emmAddress] << 1);
 				// output data
-				pio_sm_put_blocking(pio, sm_tx, data);
+				pio_sm_put_blocking(pio, sm_data, data);
 				// add address
 				++ emmAddress;
 				if(emmAddress >= EMM_SIZE)
@@ -169,11 +163,22 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 			}
 		}
 		// I/O Write, /WR is low
-		else if(!(allGpio & WR))
+		else if(!(bus & WR))
 		{
-			ioAddress = (allGpio >> ADDRESS_SHIFT) & 0xFF;
-			data = (allGpio >> DATA_SHIFT) & 0xFF;
-			switch(ioAddress)
+			address = (bus >> ADDRESS_SHIFT) & 0xFF;
+			// request data
+			pio_sm_put_blocking(pio, sm_data, 0);
+			// receive data
+			data = pio_sm_get_blocking(pio, sm_data);// & 0xFF;
+
+//			sprintf(msg, "out address: %x, data: %x\r\n", address, data);
+//			uart_puts(UART_ID, msg);
+
+//			sprintf(msg, "data: %x\r\n", data);
+//			uart_puts(UART_ID, msg);
+
+//			data = (allGpio >> DATA_SHIFT) & 0xFF;
+			switch(address)
 			{
 				// Debug
 			case 0:
@@ -203,7 +208,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 					gpio_put(LED_PIN, toggle);
 				}
 				debugDump(emmData, 256);
-				sprintf(msg, "emmAddress: %u\r\n", emmAddress);
+				sprintf(msg, "emmAddress: %u, data: %u \r\n", emmAddress, data);
 				uart_puts(UART_ID, msg);
 				break;
 			case 3:

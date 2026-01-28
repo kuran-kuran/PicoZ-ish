@@ -19,8 +19,8 @@ add_executable(PicoZ-ish
     ./source/pio.cpp
 )
 
-pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_sampling.pio)
-pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_in_data.pio)
+pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_address.pio)
+pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_data.pio)
 
 target_link_libraries(PicoZ-ish
     pico_stdlib

@@ -1,0 +1,37 @@
+; Z80のdataピンの読み込み書き込み
+; Pico2   Z80   PIO
+; GPIO0:  /IORQ gpio 0
+; GPIO1:  /RD   gpio 1
+; GPIO2:  /WR   gpio 2
+; GPIO11: D0    pins b0
+; GPIO12: D1    pins b1
+; GPIO13: D2    pins b2
+; GPIO14: D3    pins b3
+; GPIO15: D4    pins b4
+; GPIO16: D5    pins b5
+; GPIO17: D6    pins b6
+; GPIO18: D7    pins b7
+
+.program z80_io_data
+
+start:
+    pull block          ; CPU(TX FIFO)から[reserved(23bit),data(8bit),flag(1bit)]をOSRに受け取る
+    out x, 1            ; OSRからflag(1bit)をxに入れる (右シフト)
+    jmp !x, output      ; x == 0ならoutput(Z80のIN), x == 1ならinput(Z80のOUT)
+
+; PIOから見てinput、Z80のOUTに対応
+input:
+;   out null, 8         ; OSRのdata(8bit)を捨てる (右シフト)
+;   mov isr, null       ; ISR = 0
+    wait 1 gpio 2       ; pinsからdataを確実に受け取るため/WRがHighになるまで待つ
+    in pins, 8          ; Z80(OUT)から来たpinsからISRに読む[reserved(24bit),data(8bit)] (左シフト)
+    push block          ; CPU(RX FIFO)にISRを送る
+    jmp start
+
+; PIOから見てoutput、Z80のINに対応
+output:
+    mov pindirs, ~null  ; pinsを出力に設定
+    out pins, 8         ; OSRのdataをGPIOへ出力 (右シフト)
+    wait 1 gpio 1       ; Z80が受け取る/RDがHighになるまで待つ
+    mov pindirs, null   ; pinsを入力に戻す
+    jmp start
