@@ -1,15 +1,13 @@
 .program z80_in_data
 
 start:
-    wait 0 pin 0        ; /IORQ Low
-    wait 0 pin 1        ; /RD Low
+;    wait 0 pin 0        ; /IORQ Low
+;    wait 0 pin 1        ; /RD Low
 
     pull block
-    mov x, ~null
-    set pindirs, 8      ; D0-7 OUTPUT
+    mov pindirs, ~null  ; D0-7 OUTPUT
     out pins, 8
 
     wait 1 pin 1        ; /RD High
-    set x, 0
-    set pindirs, 0      ; D0-7 INPUT (Hi-Z)
+    mov pindirs, null  ; D0-7 INPUT
     jmp start

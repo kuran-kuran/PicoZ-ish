@@ -33,7 +33,7 @@ void z80_in_data_program_init(PIO pio, uint sm, uint offset, uint data_pin_base)
 	// OUT 用ピン (D0–D7)
 	sm_config_set_out_pins(&c, data_pin_base, 8);
 	// OUT SHIFT 設定 (LSB → D0)
-	sm_config_set_out_shift(&c, false, false, 32);
+	sm_config_set_out_shift(&c, true, false, 32);
 	// FIFO は TX のみ使用
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 	// 4分周

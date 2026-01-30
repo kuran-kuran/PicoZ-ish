@@ -150,14 +150,22 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 			case 0:
 				data = emmData[emmAddress];
 				// output data
-				pio_sm_put_blocking(pio, sm_tx, data);
+				pio_sm_put_blocking(pio, sm_tx, data | (data << 8) | (data << 16) | (data << 24));
+//				pio_sm_put_blocking(pio, sm_tx, data);
 				// add address
 				++ emmAddress;
 				break;
 				// EMM1
+			case 1:
+				pio_sm_put_blocking(pio, sm_tx, data);
+				debugDump(emmData, 256);
+				sprintf(msg, "emmAddress: %u \r\n", emmAddress);
+				uart_puts(UART_ID, msg);
+				break;
 			case 0xA7:
 				data = emmData[emmAddress];
 				// output data
+//				pio_sm_put_blocking(pio, sm_tx, data | (data << 8) | (data << 16) | (data << 24));
 				pio_sm_put_blocking(pio, sm_tx, data);
 				// add address
 				++ emmAddress;
@@ -203,7 +211,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 					gpio_put(LED_PIN, toggle);
 				}
 				debugDump(emmData, 256);
-				sprintf(msg, "emmAddress: %u\r\n", emmAddress);
+				sprintf(msg, "emmAddress: %u, data: %u \r\n", emmAddress, data);
 				uart_puts(UART_ID, msg);
 				break;
 			case 3:
