@@ -1,22 +1,49 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(PROJECT_ROOT ${CMAKE_CURRENT_LIST_DIR})
+
+# PICO-SDK
+if (DEFINED ENV{PICO_SDK_PATH})
+    set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+else()
+    set(PICO_SDK_PATH "${PROJECT_ROOT}/../pico-sdk")
+endif()
+
 set(PICO_BOARD pimoroni_pico_plus2_rp2350)
 # set(PICO_BOARD pico2)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 project(PicoZ-ish_project C CXX ASM)
+
+if (PICO_SDK_VERSION_STRING VERSION_LESS "2.0.0")
+    message(FATAL_ERROR "Raspberry Pi Pico SDK version 2.1.0 (or later) required. Your version is ${PICO_SDK_VERSION_STRING}")
+endif()
+
 pico_sdk_init()
 
-set(SDIO_LIB_ROOT "D:/project/git/no-OS-FatFS-SD-SDIO-SPI-RPi-Pico")
+# SDIO_LIB
+if (DEFINED ENV{SDIO_LIB_ROOT})
+    set(SDIO_LIB_ROOT $ENV{SDIO_LIB_ROOT})
+else()
+    set(SDIO_LIB_ROOT "${PROJECT_ROOT}/../no-OS-FatFS-SD-SDIO-SPI-RPi-Pico")
+endif()
 add_subdirectory(${SDIO_LIB_ROOT}/src ${CMAKE_CURRENT_BINARY_DIR}/sd_lib)
 
+#ソースファイル
 add_executable(PicoZ-ish
     ./source/main.cpp
     ./source/hw_config.c
     ./source/sdcard.cpp
     ./source/uart.cpp
+    ./source/pio.cpp
+    ./source/psram.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/MZ1R13_KAN.o
+    ${CMAKE_CURRENT_BINARY_DIR}/MZ1R13_DIC.o
 )
+
+pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_sampling.pio)
+pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_in_data.pio)
 
 target_link_libraries(PicoZ-ish
     pico_stdlib

@@ -1,0 +1,10 @@
+.program z80_in_data
+
+start:
+    pull block
+    mov pindirs, ~null  ; D0-7 OUTPUT
+    out pins, 8
+
+    wait 1 pin 1        ; /RD High
+    mov pindirs, null  ; D0-7 INPUT
+    jmp start

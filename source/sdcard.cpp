@@ -3,7 +3,7 @@ extern "C"
 #include "ff.h"
 }
 #include "hw_config.h"
-#include "sdcard.h"
+#include "sdcard.hpp"
 #include <cstring>
 
 // GPIO19 SPI1 SD-Card CS
