@@ -48,20 +48,6 @@ static const uint EMM_SIZE = 0x50000; // 320KB
 
 uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
 
-// Output data
-static inline __attribute__((always_inline)) void outputData(uint8_t data)
-{
-	// Set GPIO11-18 to Output
-	gpio_set_dir_masked(DATA_MASK, DATA_MASK);
-	gpio_put_masked(DATA_MASK, ((uint32_t)data << DATA_SHIFT));
-
-	// Wait while /RD is low
-	do {} while((sio_hw->gpio_in & RD) == 0);
-
-	// Set GPIO11-18 to Input
-	gpio_set_dir_masked(DATA_MASK, 0x00);
-}
-
 void debugDump(void* buffer, int size)
 {
 	unsigned char* buffer8 = (unsigned char*)buffer;
