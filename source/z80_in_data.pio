@@ -1,9 +1,6 @@
 .program z80_in_data
 
 start:
-;    wait 0 pin 0        ; /IORQ Low
-;    wait 0 pin 1        ; /RD Low
-
     pull block
     mov pindirs, ~null  ; D0-7 OUTPUT
     out pins, 8
