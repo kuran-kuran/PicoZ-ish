@@ -61,8 +61,15 @@ uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
 #endif
 
 // MZ-1R13 KanjiROM
+extern const uint8_t _binary_data_1R13KAN_ROM_start[];
+extern const uint8_t _binary_data_1R13DIC_ROM_start[];
+
+uint8_t __attribute__((aligned(4))) Mz1r13KanRom[0x20000];
+uint8_t __attribute__((aligned(4))) Mz1r13KanRomRev[0x20000];
+uint8_t __attribute__((aligned(4))) Mz1r13DicRom[0x4000];
+
 // ビット反転テーブル
-static const uint8_t bitRevTable[256] __attribute__((section(".tcm_data"))) =
+uint8_t bitRevTable[256] =
 {
     0x00,0x80,0x40,0xC0,0x20,0xA0,0x60,0xE0,0x10,0x90,0x50,0xD0,0x30,0xB0,0x70,0xF0,
     0x08,0x88,0x48,0xC8,0x28,0xA8,0x68,0xE8,0x18,0x98,0x58,0xD8,0x38,0xB8,0x78,0xF8,
@@ -81,9 +88,10 @@ static const uint8_t bitRevTable[256] __attribute__((section(".tcm_data"))) =
     0x07,0x87,0x47,0xC7,0x27,0xA7,0x67,0xE7,0x17,0x97,0x57,0xD7,0x37,0xB7,0x77,0xF7,
     0x0F,0x8F,0x4F,0xCF,0x2F,0xAF,0x6F,0xEF,0x1F,0x9F,0x5F,0xDF,0x3F,0xBF,0x7F,0xFF
 };
-extern const uint8_t _binary_data_MZ1R13_KAN_ROM_start[];
-extern const uint8_t _binary_data_MZ1R13_DIC_ROM_start[];
+uint8_t* mz1r13BufferTable[2] = {Mz1r13DicRom, Mz1r13KanRom};
+uint32_t mz1r13AddressMaskTable[2] = {0x3FFF, 0x1FFFF};
 
+// Debug
 void debugDump(void* buffer, int size)
 {
 	unsigned char* buffer8 = (unsigned char*)buffer;
@@ -104,14 +112,6 @@ void debugDump(void* buffer, int size)
 	uart_puts(UART_ID, "\r\n");
 }
 
-// MZ-1R13 data
-static inline __attribute__((always_inline)) uint8_t getKanjiData(uint32_t address, uint32_t select, uint8_t ioAddress)
-{
-	uint32_t offset = (address << 1) | (ioAddress & 1);
-	uint8_t value = select ? _binary_data_MZ1R13_KAN_ROM_start[offset & 0x1FFFF] : _binary_data_MZ1R13_DIC_ROM_start[offset & 0x3FFF];
-	return value;
-}
-
 __attribute__((noinline)) int __time_critical_func(main)(void)
 {
 	stdio_init_all();
@@ -124,7 +124,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 
 	// overclock 300MHz
 	vreg_set_voltage(VREG_VOLTAGE_1_20);
-	set_sys_clock_khz(300000 ,true);
+//	sleep_ms(1000);
+	set_sys_clock_khz(360000 ,true);
 
 	// init UART
 	uartInit();
@@ -164,6 +165,19 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	uint32_t emmAddress = 0;
 	uint32_t kanjiAddress = 0;
 	uint32_t kanjiSelect = 0;
+	memcpy(Mz1r13KanRom, _binary_data_1R13KAN_ROM_start, 0x20000);
+	memcpy(Mz1r13KanRomRev, _binary_data_1R13KAN_ROM_start, 0x20000);
+	for(int i = 0; i < 0x20000; ++ i)
+	{
+		uint8_t value = Mz1r13KanRomRev[i];
+		uint8_t data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
+				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
+		Mz1r13KanRomRev[i] = data;
+	}
+
+	memcpy(Mz1r13DicRom, _binary_data_1R13DIC_ROM_start, 0x4000);
+	const uint8_t *kanjiBaseBuffer = mz1r13BufferTable[0];
+	uint32_t kanjiAddressMask = mz1r13AddressMaskTable[0];
 	int toggle = 1;
 	bool flag;
 	memset(emmData, 0, EMM_SIZE);
@@ -195,8 +209,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				break;
 			case 1:
 				pio_sm_put_blocking(pio, sm_tx, data);
-				debugDump(emmData, 256);
-				sprintf(msg, "emmAddress: %u \r\n", emmAddress);
+				debugDump(&emmData[(int)data * 256], 256);
+				sprintf(msg, "emmAddress: %x, data: %x \r\n", emmAddress, data);
 				uart_puts(UART_ID, msg);
 				break;
 				// PIO-3034 EMM1
@@ -213,26 +227,43 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				break;
 				// MZ-1R13 KANJIROM
 			case 0xB8:
-				data = getKanjiData(kanjiAddress, kanjiSelect, ioAddress);
+				data = kanjiBaseBuffer[kanjiAddress & kanjiAddressMask];
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
 				break;
 			case 0xB9:
-				data = getKanjiData(kanjiAddress, kanjiSelect, ioAddress);
+				data = kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask];
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
-				++ kanjiAddress;
+				kanjiAddress += 2;
 				break;
 			case 0xBA:
-				data = bitRevTable[getKanjiData(kanjiAddress, kanjiSelect, ioAddress)];
+				data = Mz1r13KanRomRev[kanjiAddress & kanjiAddressMask];
+//				data = kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask];
+/*
+{
+				uint8_t value = kanjiBaseBuffer[kanjiAddress & kanjiAddressMask];
+				data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
+				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
+}
+//*/
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
 				break;
 			case 0xBB:
-				data = bitRevTable[getKanjiData(kanjiAddress, kanjiSelect, ioAddress)];
+				data = Mz1r13KanRomRev[(kanjiAddress + 1) & kanjiAddressMask];
+//				data = kanjiBaseBuffer[(kanjiAddress) & kanjiAddressMask];
+/*
+{
+				uint8_t value = kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask];
+				data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
+				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
+}
+//*/
+
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
-				++ kanjiAddress;
+				kanjiAddress += 2;
 				break;
 			}
 		}
@@ -272,7 +303,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				}
 				debugDump(emmData, 256);
 				sprintf(msg, "emmAddress: %u, data: %u \r\n", emmAddress, data);
-				debugDump((void*)_binary_data_MZ1R13_KAN_ROM_start, 256);
+				debugDump((void*)_binary_data_1R13KAN_ROM_start, 256);
 				sprintf(msg, "kanjiAddress: %u, kanjiSelect: %u \r\n", kanjiAddress, kanjiSelect);
 				uart_puts(UART_ID, msg);
 				break;
@@ -304,21 +335,21 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				break;
 				// MZ-1R13 KANJIROM
 			case 0xB8:
-				kanjiAddress = (kanjiAddress & 0xFF00) | data;
+				kanjiAddress = (kanjiAddress & 0x1FE01) | (data << 1);
 				break;
 			case 0xB9:
-				kanjiAddress = (kanjiAddress & 0x00FF) | (data << 8);
+				kanjiAddress = (kanjiAddress & 0x01FF) | (data << 9);
 				break;
 			case 0xBA:
-				kanjiSelect = ((data & 1) != 0);
+				kanjiBaseBuffer = mz1r13BufferTable[data & 1];
+				kanjiAddressMask = mz1r13AddressMaskTable[data & 1];
 				break;
 			case 0xBB:
-				++ kanjiAddress;
+				kanjiAddress += 2;
 				break;
 			}
 		}
 	}
 	while(true);
-
 	return 0;
 }

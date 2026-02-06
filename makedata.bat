@@ -1,2 +1,2 @@
-arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm data\MZ1R13_KAN.ROM build\MZ1R13_KAN.o
-arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm data\MZ1R13_DIC.ROM build\MZ1R13_DIC.o
+arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm data\1R13KAN.ROM build\1R13KAN.o
+arm-none-eabi-objcopy -I binary -O elf32-littlearm -B arm data\1R13DIC.ROM build\1R13DIC.o

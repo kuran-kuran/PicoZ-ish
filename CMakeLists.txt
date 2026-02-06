@@ -31,21 +31,21 @@ endif()
 add_subdirectory(${SDIO_LIB_ROOT}/src ${CMAKE_CURRENT_BINARY_DIR}/sd_lib)
 
 #ソースファイル
-add_executable(PicoZ-ish
+add_executable(PicoZ_ish
     ./source/main.cpp
     ./source/hw_config.c
     ./source/sdcard.cpp
     ./source/uart.cpp
     ./source/pio.cpp
     ./source/psram.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/MZ1R13_KAN.o
-    ${CMAKE_CURRENT_BINARY_DIR}/MZ1R13_DIC.o
+    ${CMAKE_CURRENT_BINARY_DIR}/1R13KAN.o
+    ${CMAKE_CURRENT_BINARY_DIR}/1R13DIC.o
 )
 
-pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_sampling.pio)
-pico_generate_pio_header(PicoZ-ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_in_data.pio)
+pico_generate_pio_header(PicoZ_ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_sampling.pio)
+pico_generate_pio_header(PicoZ_ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_in_data.pio)
 
-target_link_libraries(PicoZ-ish
+target_link_libraries(PicoZ_ish
     pico_stdlib
     hardware_uart
     hardware_spi
@@ -53,13 +53,13 @@ target_link_libraries(PicoZ-ish
     hardware_dma
     no-OS-FatFS-SD-SDIO-SPI-RPi-Pico
 )
-pico_set_program_name(PicoZ-ish "PicoZ-ish")
-pico_set_program_version(PicoZ-ish "0.0.1")
-pico_enable_stdio_usb(PicoZ-ish 1)
-pico_enable_stdio_uart(PicoZ-ish 0)
+pico_set_program_name(PicoZ_ish "PicoZ-ish")
+pico_set_program_version(PicoZ_ish "0.0.1")
+pico_enable_stdio_usb(PicoZ_ish 1)
+pico_enable_stdio_uart(PicoZ_ish 0)
 
-# target_include_directories(PicoZ-ish PRIVATE ${CMAKE_CURRENT_LIST_DIR}/source)
-target_include_directories(PicoZ-ish PRIVATE 
+# target_include_directories(PicoZ_ish PRIVATE ${CMAKE_CURRENT_LIST_DIR}/source)
+target_include_directories(PicoZ_ish PRIVATE 
     ${CMAKE_CURRENT_LIST_DIR}
     ${SDIO_LIB_ROOT}/src
     ${SDIO_LIB_ROOT}/src/include
@@ -67,4 +67,4 @@ target_include_directories(PicoZ-ish PRIVATE
     ${SDIO_LIB_ROOT}/src/ff15/source
 )
 
-pico_add_extra_outputs(PicoZ-ish)
+pico_add_extra_outputs(PicoZ_ish)
