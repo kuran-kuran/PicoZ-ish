@@ -168,7 +168,7 @@ int __not_in_flash_func(ioFunc)(void)
 					gpio_put(LED_PIN, toggle);
 				}
 				debugDump(emmData, 256);
-				sprintf(msg, "emmAddress: %u\r\n", emmAddress);
+				sprintf(msg, "emmAddress: %x, data: %x \r\n", emmAddress, data);
 				uart_puts(UART_ID, msg);
 				break;
 			case 3:
@@ -186,7 +186,6 @@ int __not_in_flash_func(ioFunc)(void)
 			case 0xA5:
 				emmAddress = (emmAddress & 0xFF00FF) | (data << 8);
 				break;
-				
 			case 0xA6:
 				emmAddress = (emmAddress & 0x00FFFF) | (data << 16);
 				break;
@@ -217,9 +216,9 @@ int main()
 	// init SD card
 	sdInit();
 
-	// overclock 300MHz
+	// overclock 200MHz なぜか200MHzが安定する???
 	vreg_set_voltage(VREG_VOLTAGE_1_20);
-	set_sys_clock_khz(300000 ,true);
+	set_sys_clock_khz(200000 ,true);
 
 	// init UART
 	uartInit();
