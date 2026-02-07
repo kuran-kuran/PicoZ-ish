@@ -123,9 +123,9 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	sdInit();
 
 	// overclock 300MHz
-	vreg_set_voltage(VREG_VOLTAGE_1_20);
+//	vreg_set_voltage(VREG_VOLTAGE_1_20);
 //	sleep_ms(1000);
-	set_sys_clock_khz(360000 ,true);
+//	set_sys_clock_khz(200000 ,true);
 
 	// init UART
 	uartInit();
@@ -238,29 +238,12 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				kanjiAddress += 2;
 				break;
 			case 0xBA:
-				data = Mz1r13KanRomRev[kanjiAddress & kanjiAddressMask];
-//				data = kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask];
-/*
-{
-				uint8_t value = kanjiBaseBuffer[kanjiAddress & kanjiAddressMask];
-				data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
-				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
-}
-//*/
+				data = bitRevTable[kanjiBaseBuffer[kanjiAddress & kanjiAddressMask]];
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
 				break;
 			case 0xBB:
-				data = Mz1r13KanRomRev[(kanjiAddress + 1) & kanjiAddressMask];
-//				data = kanjiBaseBuffer[(kanjiAddress) & kanjiAddressMask];
-/*
-{
-				uint8_t value = kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask];
-				data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
-				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
-}
-//*/
-
+				data = bitRevTable[kanjiBaseBuffer[(kanjiAddress + 1) & kanjiAddressMask]];
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
 				kanjiAddress += 2;
