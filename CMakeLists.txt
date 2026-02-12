@@ -38,8 +38,8 @@ add_executable(PicoZ_ish
     ./source/uart.cpp
     ./source/pio.cpp
     ./source/psram.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/1R13KAN.o
-    ${CMAKE_CURRENT_BINARY_DIR}/1R13DIC.o
+    ./source/1R13DIC.cpp
+    ./source/1R13KAN.cpp
 )
 
 pico_generate_pio_header(PicoZ_ish ${CMAKE_CURRENT_LIST_DIR}/source/z80_io_sampling.pio)

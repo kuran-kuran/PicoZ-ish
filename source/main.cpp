@@ -61,11 +61,11 @@ uint8_t __attribute__((aligned(4))) emmData[EMM_SIZE];
 #endif
 
 // MZ-1R13 KanjiROM
-extern const uint8_t _binary_data_1R13KAN_ROM_start[];
-extern const uint8_t _binary_data_1R13DIC_ROM_start[];
+extern const uint8_t _1R13DIC_ROM[];
+extern const uint8_t _1R13KAN_ROM[];
 
 uint8_t __attribute__((aligned(4))) Mz1r13KanRom[0x20000];
-uint8_t __attribute__((aligned(4))) Mz1r13KanRomRev[0x20000];
+//uint8_t __attribute__((aligned(4))) Mz1r13KanRomRev[0x20000];
 uint8_t __attribute__((aligned(4))) Mz1r13DicRom[0x4000];
 
 // ビット反転テーブル
@@ -88,7 +88,8 @@ uint8_t bitRevTable[256] =
     0x07,0x87,0x47,0xC7,0x27,0xA7,0x67,0xE7,0x17,0x97,0x57,0xD7,0x37,0xB7,0x77,0xF7,
     0x0F,0x8F,0x4F,0xCF,0x2F,0xAF,0x6F,0xEF,0x1F,0x9F,0x5F,0xDF,0x3F,0xBF,0x7F,0xFF
 };
-uint8_t* mz1r13BufferTable[2] = {Mz1r13DicRom, Mz1r13KanRom};
+
+const uint8_t* mz1r13BufferTable[2] = {Mz1r13DicRom, Mz1r13KanRom};
 uint32_t mz1r13AddressMaskTable[2] = {0x3FFF, 0x1FFFF};
 
 // Debug
@@ -125,7 +126,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	// overclock 300MHz
 //	vreg_set_voltage(VREG_VOLTAGE_1_20);
 //	sleep_ms(1000);
-//	set_sys_clock_khz(200000 ,true);
+//	set_sys_clock_khz(300000 ,true);
 
 	// init UART
 	uartInit();
@@ -165,17 +166,17 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	uint32_t emmAddress = 0;
 	uint32_t kanjiAddress = 0;
 	uint32_t kanjiSelect = 0;
-	memcpy(Mz1r13KanRom, _binary_data_1R13KAN_ROM_start, 0x20000);
-	memcpy(Mz1r13KanRomRev, _binary_data_1R13KAN_ROM_start, 0x20000);
-	for(int i = 0; i < 0x20000; ++ i)
-	{
-		uint8_t value = Mz1r13KanRomRev[i];
-		uint8_t data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
-				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
-		Mz1r13KanRomRev[i] = data;
-	}
+	memcpy(Mz1r13KanRom, _1R13KAN_ROM, 0x20000);
+//	memcpy(Mz1r13KanRomRev, _binary_data_1R13KAN_ROM_start, 0x20000);
+//	for(int i = 0; i < 0x20000; ++ i)
+//	{
+//		uint8_t value = Mz1r13KanRomRev[i];
+//		uint8_t data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
+//				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
+//		Mz1r13KanRomRev[i] = data;
+//	}
 
-	memcpy(Mz1r13DicRom, _binary_data_1R13DIC_ROM_start, 0x4000);
+	memcpy(Mz1r13DicRom, _1R13DIC_ROM, 0x4000);
 	const uint8_t *kanjiBaseBuffer = mz1r13BufferTable[0];
 	uint32_t kanjiAddressMask = mz1r13AddressMaskTable[0];
 	int toggle = 1;
@@ -286,7 +287,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				}
 				debugDump(emmData, 256);
 				sprintf(msg, "emmAddress: %u, data: %u \r\n", emmAddress, data);
-				debugDump((void*)_binary_data_1R13KAN_ROM_start, 256);
+				debugDump((void*)kanjiBaseBuffer, 256);
 				sprintf(msg, "kanjiAddress: %u, kanjiSelect: %u \r\n", kanjiAddress, kanjiSelect);
 				uart_puts(UART_ID, msg);
 				break;
