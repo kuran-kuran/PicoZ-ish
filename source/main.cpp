@@ -65,7 +65,6 @@ extern const uint8_t _1R13DIC_ROM[];
 extern const uint8_t _1R13KAN_ROM[];
 
 uint8_t __attribute__((aligned(4))) Mz1r13KanRom[0x20000];
-//uint8_t __attribute__((aligned(4))) Mz1r13KanRomRev[0x20000];
 uint8_t __attribute__((aligned(4))) Mz1r13DicRom[0x4000];
 
 // ビット反転テーブル
@@ -124,9 +123,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	sdInit();
 
 	// overclock 300MHz
-//	vreg_set_voltage(VREG_VOLTAGE_1_20);
-//	sleep_ms(1000);
-//	set_sys_clock_khz(300000 ,true);
+	vreg_set_voltage(VREG_VOLTAGE_1_20);
+	set_sys_clock_khz(300000 ,true);
 
 	// init UART
 	uartInit();
@@ -167,15 +165,6 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 	uint32_t kanjiAddress = 0;
 	uint32_t kanjiSelect = 0;
 	memcpy(Mz1r13KanRom, _1R13KAN_ROM, 0x20000);
-//	memcpy(Mz1r13KanRomRev, _binary_data_1R13KAN_ROM_start, 0x20000);
-//	for(int i = 0; i < 0x20000; ++ i)
-//	{
-//		uint8_t value = Mz1r13KanRomRev[i];
-//		uint8_t data = ((value >> 7) & 0x01) | ((value >> 5) & 0x02) | ((value >> 3) & 0x04) | ((value >> 1) & 0x08) |
-//				       ((value << 1) & 0x10) | ((value << 3) & 0x20) | ((value << 5) & 0x40) | ((value << 7) & 0x80);
-//		Mz1r13KanRomRev[i] = data;
-//	}
-
 	memcpy(Mz1r13DicRom, _1R13DIC_ROM, 0x4000);
 	const uint8_t *kanjiBaseBuffer = mz1r13BufferTable[0];
 	uint32_t kanjiAddressMask = mz1r13AddressMaskTable[0];
@@ -214,8 +203,8 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				sprintf(msg, "emmAddress: %x, data: %x \r\n", emmAddress, data);
 				uart_puts(UART_ID, msg);
 				break;
-				// PIO-3034 EMM1
-			case 0xA7:
+				// PIO-3034 EMM2
+			case 0xAB:
 				data = emmData[emmAddress];
 				// output data
 				pio_sm_put_blocking(pio, sm_tx, data);
@@ -287,7 +276,7 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				}
 				debugDump(emmData, 256);
 				sprintf(msg, "emmAddress: %u, data: %u \r\n", emmAddress, data);
-				debugDump((void*)kanjiBaseBuffer, 256);
+//				debugDump((void*)kanjiBaseBuffer, 256);
 				sprintf(msg, "kanjiAddress: %u, kanjiSelect: %u \r\n", kanjiAddress, kanjiSelect);
 				uart_puts(UART_ID, msg);
 				break;
@@ -299,17 +288,17 @@ __attribute__((noinline)) int __time_critical_func(main)(void)
 				toggle = 1 - toggle;
 				gpio_put(LED_PIN, toggle);
 				break;
-				// PIO-3034 EMM1
-			case 0xA4:
+				// PIO-3034 EMM2
+			case 0xA8:
 				emmAddress = (emmAddress & 0xFFFF00) | data;
 				break;
-			case 0xA5:
+			case 0xA9:
 				emmAddress = (emmAddress & 0xFF00FF) | (data << 8);
 				break;
-			case 0xA6:
+			case 0xAA:
 				emmAddress = (emmAddress & 0x00FFFF) | (data << 16);
 				break;
-			case 0xA7:
+			case 0xAB:
 				emmData[emmAddress] = data;
 				++ emmAddress;
 				if(emmAddress >= EMM_SIZE)

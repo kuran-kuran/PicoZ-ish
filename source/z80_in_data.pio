@@ -5,6 +5,6 @@ start:
     mov pindirs, ~null  ; D0-7 OUTPUT
     out pins, 8
 
-    wait 1 pin 1        ; /RD High
-    mov pindirs, null  ; D0-7 INPUT
+    wait 1 gpio 1       ; /RD High
+    mov pindirs, null   ; D0-7 INPUT
     jmp start
