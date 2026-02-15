@@ -12,7 +12,7 @@ void z80_io_sampling_program_init(PIO pio, uint sm, uint offset, uint base_pin)
 	sm_config_set_in_shift(&c, false, false, 32);
 	// FIFO を RX のみに使用
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-	// 4分周
+	// 分周しない
 	sm_config_set_clkdiv(&c, 1.0f);
 	// GPIO0–18 を PIO 管轄に
 	for (int i = base_pin; i < base_pin + 19; ++ i)
@@ -36,7 +36,7 @@ void z80_in_data_program_init(PIO pio, uint sm, uint offset, uint data_pin_base)
 	sm_config_set_out_shift(&c, true, false, 32);
 	// FIFO は TX のみ使用
 	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-	// 4分周
+	// 分周しない
 	sm_config_set_clkdiv(&c, 1.0f);
 	// state machine 初期化
 	pio_sm_init(pio, sm, offset, &c);
